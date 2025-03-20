@@ -28,6 +28,16 @@ open class MRCountryPicker: UIPickerView, UIPickerViewDelegate, UIPickerViewData
     open weak var countryPickerDelegate: MRCountryPickerDelegate?
     open var showPhoneNumbers: Bool = true
     open var isCountryFlag = true
+    open var externalCountryData: Data?{
+        didSet{
+            setup()
+        }
+    }
+    
+    init(externalCountryData:Data?) {
+        super.init(frame: .zero)
+        self.externalCountryData = externalCountryData
+    }
     override init(frame: CGRect) {
         super.init(frame: frame)
         setup()
@@ -38,8 +48,9 @@ open class MRCountryPicker: UIPickerView, UIPickerViewDelegate, UIPickerViewData
         setup()
     }
 
+    
     func setup() {
-        countries = countryNamesByCode()
+        countries = externalCountryData != nil ? countryNamesByCodeForExternalData() : countryNamesByCode()
 
         if let code = Locale.current.languageCode {
             self.selectedLocale = Locale(identifier: code)
@@ -122,6 +133,35 @@ open class MRCountryPicker: UIPickerView, UIPickerViewDelegate, UIPickerViewData
         return countries
     }
     
+    func countryNamesByCodeForExternalData() -> [Country] {
+        var countries = [Country]()
+        guard  let jsonData = self.externalCountryData else {
+            return countries
+        }
+        
+        do {
+            if let jsonObjects = try JSONSerialization.jsonObject(with: jsonData, options: JSONSerialization.ReadingOptions.allowFragments) as? NSArray {
+
+                    for jsonObject in jsonObjects {
+                        
+                        guard let countryObj = jsonObject as? NSDictionary else {
+                            return countries
+                        }
+                        
+                        guard let code = countryObj["countryCode"] as? String, let phoneCode = countryObj["phonecode"] as? String, let name = countryObj["name"] as? String else {
+                            return countries
+                        }
+
+                        let country = Country(code: code, name: name, phoneCode: phoneCode)
+                        countries.append(country)
+                    }
+
+                }
+        } catch {
+            return countries
+        }
+        return countries
+    }
     // MARK: - Picker Methods
     
     open func numberOfComponents(in pickerView: UIPickerView) -> Int {
